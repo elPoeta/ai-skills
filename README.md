@@ -1,2 +1,2 @@
 # ai-skills
-AI skils for coding gaents
+AI skils for coding agents
