@@ -254,9 +254,32 @@ This allows opacity modifiers to work: `rgba(var(--bg-cs-primary), 0.8)`.
 
 ---
 
-### Per-element custom styles
+### Per-element custom styles (node `styles` prop)
 
-Also use the `styles.custom` array for:
+In addition to the global `styles.custom` array, individual VNodes accept
+an inline `styles` object (React.CSSProperties — camelCase):
+
+```json
+{
+  "id": "hero001a",
+  "tag": "section",
+  "attrs": { "class": "py-24 px-4" },
+  "styles": {
+    "background": "linear-gradient(135deg, rgb(var(--bg-cs-secondary)), rgb(var(--bg-cs-tertiary)))",
+  },
+  "children": []
+}
+```
+
+Use the `styles` node prop for:
+
+- backgroundImage
+- background-Position
+- backgroundSize
+- backgroundRepeat
+- backgroundAttachment
+
+Use `styles.custom` for complex styles
 - Gradients and complex backgrounds
 - Precise borders that Tailwind classes can't express
 - Animation keyframe references (`animation: "fadeIn 0.4s ease"`)
@@ -319,6 +342,7 @@ type VNode = {
   attrs: Record<string, string>;     // all attrs as strings; use "class" not "className"
   children: VNode[];                 // always an array, never null or missing
   text?: string;                     // ONLY on leaf text nodes (no children)
+  styles?: React.CSSProperties;      // optional inline styles object (not a string)
   eventHandlers?: Record<string, string>; // rarely used, prefer dynamicHandlers
 }
 ```
@@ -355,6 +379,12 @@ The `data-text-node="true"` attr marks it as a text node for the editor.
 - All attr values are strings, including booleans: `"data-open-new-tab": "true"`
 - SVG attrs use camelCase in the renderer: `stroke-linecap` → handled automatically
 - `id` in attrs is the HTML element id (used by dynamicHandlers); separate from node `id`
+
+### Styles
+`styles` is a React.CSSProperties object (camelCase), not a CSS string:
+```json
+"styles": { "background": "linear-gradient(135deg, #667eea, #764ba2)" }
+```
 
 ---
 
