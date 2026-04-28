@@ -4,10 +4,11 @@ description: >
   Generate and edit JSON pages for a custom HTML Builder system from natural language.
   Use this skill whenever the user asks to create a web page, landing page, portfolio,
   blog, contact page, about page, dashboard, 404 page, or any other webpage type —
-  even if they don't say "HTML Builder" explicitly. Also use it when the user asks to
-  add sections, edit existing pages, change styles, add components, or modify any page
-  JSON for this builder. The output is always a complete JSON file written to disk,
-  ready to paste or load directly into the HTML Builder.
+  even if they do not say HTML Builder explicitly. Also use it when the user asks to
+  add sections, edit existing pages, change styles, add components, add interactivity
+  (tabs, accordions, carousels, calendars, multi-step forms, counters, modals, toggles),
+  or modify any page JSON for this builder. The output is always a complete JSON file
+  written to disk, ready to paste or load directly into the HTML Builder.
 ---
 
 # HTML Builder Skill
@@ -21,17 +22,20 @@ theme CSS variables, and a set of custom React components.
 ### generate_page
 1. Read `references/schema.md` — VNode structure, wrapper format, **styles.custom system**, rules
 2. Read `references/components.md` — all custom components and their attrs
-3. Plan the page: sections, layout, components, color scheme (dark or light)
-4. Generate `styles.custom` first — `:root` vars + `body` + all `theme-*` class mappings used
-5. Generate the full VNode tree in `treeNode.children`
-6. Validate: every node has a unique id, no orphan text, children always array, all theme classes have a matching rule in `styles.custom`
+3. Plan the page: sections, layout, components, color scheme, interactive elements
+4. If interactive elements present: read `references/interactivity.md`
+5. Generate `styles.custom` first — `:root` vars + `body` + all `theme-*` class mappings used
+6. Generate the full VNode tree in `treeNode.children`
+7. Generate `dynamicHandlers` and `eventContext` if needed
+8. Validate: every node has a unique id, no orphan text, children always array, all theme classes have a matching rule in `styles.custom`, handler element ids match `attrs.id` in tree
 7. Write to the requested output path (create dirs if needed)
 8. Report: file path + node count + custom components used
 
 ### edit_page
 1. Read the existing JSON file from disk
 2. Read `references/schema.md` and `references/components.md`
-3. Apply the requested changes to the full tree
+3. If the edit involves interactivity: read `references/interactivity.md`
+4. Apply the requested changes to the full tree
 4. Return the **complete** updated JSON (never partial)
 5. Overwrite original or write to new path as instructed
 6. Report what changed
@@ -98,6 +102,14 @@ Hover variants: `hover:text-theme-accent`, `hover:bg-theme-tertiary`, `hover:bor
 > The `:root` block defines `-cs-` vars; class rules map them to `theme-*` utilities.
 > See `references/schema.md` → *styles.custom* for the full system and both dark/light presets.
 
+### Interactivity (quick reference)
+- **dynamicHandlers**: keyed by element `attrs.id` → event → JS string
+- **eventContext**: keyed by variable name → serialized JS (string/number/object/function)
+- Object context wraps in `({ })` — methods use `this.state` for shared state
+- In handlers: `event`, `element`, `document`, `window` always available; context vars by name
+- Common patterns: mobile menu, tabs, accordion, counter, multi-step form, calendar, toast
+→ Full reference, calendar example, and all patterns in `references/interactivity.md`
+
 ## Reference Files
 
 Read these files before generating any page:
@@ -106,6 +118,8 @@ Read these files before generating any page:
 |------|-------------|
 | `references/schema.md` | Always — VNode schema, wrapper, **styles.custom system** (vars, types, presets), all structural rules |
 | `references/components.md` | Always — every custom component with full attr reference and usage patterns |
+| `references/interactivity.md` | When the page has interactive elements — dynamicHandlers, eventContext, stateful UI patterns |
 
-Both files must be read before writing any JSON. They contain critical constraints
-that are not repeated here to keep this file short.
+The first two files must always be read before writing any JSON.
+Read interactivity.md whenever the page includes tabs, accordions, forms, calendars,
+carousels, steppers, counters, toggles, modals, or any element that reacts to user input.
