@@ -69,9 +69,345 @@ disabled — they only run in preview/live mode.
 | `event` | `Event` | The native DOM event |
 | `element` | `HTMLElement` | The element that triggered the event |
 | `document` | `Document` | The page document |
-| `window` | `Window` | The browser window |
+| `window` | `Window` | The browser window (sandboxed — use `utils.*` instead of `window.*`) |
+| `utils` | object | Built-in utility functions (notifications, navigation, scroll, storage) |
+| `helpers` | object | Built-in DOM & data helpers (classes, content, visibility, forms) |
+| `modal` | object | Built-in modal/dialog system |
+| `api` | object | Built-in HTTP fetch helpers (GET, POST, PUT, PATCH, DELETE) |
+| `service` | object | Built-in compiler service integration |
 
 Plus any variables defined in `eventContext` (see below).
+
+> **Important:** `window` is sandboxed — direct calls like `window.location.href` or
+> `window.open()` are blocked. Always use the built-in helpers instead:
+> `utils.redirect()`, `utils.openInNewTab()`, `utils.scrollTo()`, etc.
+> `localStorage` is also blocked — use `utils.toLocalStorage()` / `utils.fromLocalStorage()`.
+> Direct `fetch()` is blocked — use `api.get()`, `api.post()`, etc.
+
+---
+
+## Built-in Event Context
+
+These five objects are **always injected** into every handler automatically.
+No `eventContext` entry needed. They cover the vast majority of interactive needs.
+
+---
+
+### `utils` — Core utilities
+
+#### Notifications
+
+| Call | Description |
+|------|-------------|
+| `utils.toast.success(msg, duration?)` | Green success toast |
+| `utils.toast.error(msg, duration?)` | Red error toast |
+| `utils.toast.warning(msg, duration?)` | Yellow warning toast |
+| `utils.toast.info(msg, duration?)` | Blue info toast |
+| `utils.showToast(msg, type?, duration?)` | Generic toast. `type`: `"info"` `"success"` `"warning"` `"error"`. Default 4000 ms |
+| `utils.notify(msg)` | Browser `alert()` — avoid in production |
+
+```js
+utils.toast.success('Guardado correctamente', 3000);
+utils.toast.error('Error al enviar');
+utils.showToast('Procesando...', 'info', 2000);
+```
+
+#### Navigation
+
+| Call | Description |
+|------|-------------|
+| `utils.redirect(url)` | Navigate to URL |
+| `utils.openInNewTab(url)` | Open URL in new tab (noopener, noreferrer) |
+| `utils.reload()` | Reload the page |
+
+```js
+utils.redirect('/dashboard');
+utils.openInNewTab('https://docs.example.com');
+```
+
+#### Scrolling & timing
+
+| Call | Description |
+|------|-------------|
+| `utils.scrollTo(selector)` | Smooth scroll to any CSS selector |
+| `utils.scrollToTop()` | Smooth scroll to top |
+| `utils.wait({ fn, ms })` | Delay a function call by `ms` milliseconds |
+
+```js
+utils.scrollTo('#features');
+utils.scrollToTop();
+utils.wait({ fn: () => helpers.hide('#overlay'), ms: 500 });
+```
+
+#### Page & user info
+
+| Call | Description |
+|------|-------------|
+| `utils.getUser()` | Returns `{ id, email, isAdmin }` or `null` |
+| `utils.getLocaleLang()` | Returns `"en"` or `"es"` |
+| `utils.getAlias()` | Returns current page alias |
+| `utils.getProjectId()` | Returns project ID |
+| `utils.getAliasShareKey` | Share key constant |
+| `utils.getJsonEncoded(jsonStr)` | Encode JSON string for URL usage |
+
+```js
+const user = utils.getUser();
+if (!user) { utils.redirect('/login'); }
+else { helpers.setText('#greeting', 'Hola, ' + user.email); }
+
+const lang = utils.getLocaleLang(); // 'en' | 'es'
+```
+
+#### Local storage (builder-namespaced)
+
+| Call | Description |
+|------|-------------|
+| `utils.toLocalStorage(key, value)` | Save to `localStorage` under `builder-{key}` |
+| `utils.fromLocalStorage(key)` | Read from `localStorage` under `builder-{key}` |
+
+```js
+utils.toLocalStorage('step', '2');
+const step = utils.fromLocalStorage('step'); // '2'
+```
+
+---
+
+### `helpers` — DOM & data manipulation
+
+#### Class manipulation
+
+| Call | Description |
+|------|-------------|
+| `helpers.toggleClass(el, className)` | Toggle a class. `el`: selector string or HTMLElement |
+| `helpers.addClass(el, className)` | Add a class |
+| `helpers.removeClass(el, className)` | Remove a class |
+| `helpers.setClasses(el, toAdd[], toRemove[])` | Add and remove classes atomically |
+
+```js
+helpers.toggleClass('#mobile-menu', 'hidden');
+helpers.toggleClass(element, 'active');
+helpers.setClasses('#btn', ['opacity-50', 'cursor-not-allowed'], ['bg-theme-accent']);
+helpers.addClass('#nav', 'scrolled');
+```
+
+#### Content
+
+| Call | Description |
+|------|-------------|
+| `helpers.setText(el, text)` | Set `textContent` |
+| `helpers.setHTML(el, html)` | Set `innerHTML` |
+| `helpers.appendHTML(el, html)` | Inject HTML at end of element |
+| `helpers.prependHTML(el, html)` | Inject HTML at start of element |
+| `helpers.clearContent(el)` | Empty text content |
+| `helpers.clearFileInput(input)` | Reset a `<input type="file">` |
+
+```js
+helpers.setText('#count-display', String(count));
+helpers.setHTML('#results', items.map(i => '<li>'+i.name+'</li>').join(''));
+helpers.appendHTML('#log', '<p>Step completed</p>');
+helpers.clearContent('#error-msg');
+```
+
+#### Visibility
+
+| Call | Description |
+|------|-------------|
+| `helpers.hide(selector)` | Set `display: none` |
+| `helpers.show(selector, displayType?)` | Set `display: block` (or custom type) |
+| `helpers.toggle(selector)` | Toggle between `none` / `block` |
+
+```js
+helpers.hide('#loading-spinner');
+helpers.show('#results', 'flex');
+helpers.toggle('#dropdown');
+```
+
+#### Forms & clipboard
+
+| Call | Description |
+|------|-------------|
+| `helpers.getFormData(form)` | Returns `{ fieldName: value }` from a `<form>` element |
+| `helpers.copyToClipboard(text)` | Copy to clipboard + auto success/error toast |
+
+```js
+// In a submit handler:
+event.preventDefault();
+const data = helpers.getFormData(element);
+// { name: 'Ana', email: 'ana@...', message: '...' }
+
+helpers.copyToClipboard(document.getElementById('code-output').textContent);
+```
+
+#### Timing & data
+
+| Call | Description |
+|------|-------------|
+| `helpers.debounce(fn, wait)` | Debounced function (for eventContext objects, not inline strings) |
+| `helpers.throttle(fn, wait)` | Throttled function (same) |
+| `helpers.formatDate(date?)` | `date.toLocaleDateString()`, defaults to today |
+| `helpers.randomId()` | Random 7-char alphanumeric string |
+
+```js
+// Inside an eventContext object:
+// search: ({ handler: helpers.debounce(function(q){ ... }, 300) })
+helpers.formatDate(); // '4/29/2025'
+helpers.randomId();   // 'a3bx9c1'
+```
+
+---
+
+### `modal` — Dialog system
+
+| Call | Description |
+|------|-------------|
+| `modal.create(options)` | Create and show a custom HTML modal |
+| `modal.confirm(options)` | Show confirm dialog with onConfirm / onCancel callbacks |
+| `modal.alert(message, title?, variant?)` | Show alert dialog |
+| `modal.open(selector)` | Open existing modal by CSS selector |
+| `modal.close(selector)` | Close existing modal by CSS selector |
+| `modal.toggle(selector)` | Toggle existing modal |
+
+```js
+// Confirm before destructive action:
+modal.confirm({
+  title: '¿Eliminar?',
+  message: 'Esta acción no se puede deshacer.',
+  confirmText: 'Sí, eliminar',
+  cancelText: 'Cancelar',
+  confirmVariant: 'danger',   // 'primary' | 'danger' | 'success' | 'warning'
+  onConfirm: () => { api.delete('/api/item/' + id).then(() => utils.toast.success('Eliminado')); },
+  onCancel:  () => { utils.toast.info('Cancelado'); }
+});
+
+// Custom content modal:
+modal.create({
+  title: 'Detalles',
+  content: '<p class="text-sm">Completá todos los campos.</p>',
+  size: 'md',        // 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  animation: 'zoom', // 'fade' | 'slide' | 'zoom'
+  onClose: () => { helpers.show('#form'); }
+});
+
+// Simple alert:
+modal.alert('Guardado correctamente', 'Éxito', 'success');
+// variant: 'info' | 'success' | 'warning' | 'error'
+```
+
+---
+
+### `api` — HTTP fetch helpers
+
+All methods serialize body as JSON, parse response as JSON, and show an error toast
+automatically on failure. Direct `fetch()` in handler code is blocked — always use `api.*`.
+
+| Call | Description |
+|------|-------------|
+| `api.get(url, options?)` | GET → parsed JSON |
+| `api.post(url, data?, options?)` | POST with JSON body → parsed JSON |
+| `api.put(url, data?, options?)` | PUT with JSON body → parsed JSON |
+| `api.patch(url, data?, options?)` | PATCH with JSON body → parsed JSON |
+| `api.delete(url, options?)` | DELETE → parsed JSON |
+| `api.fetch(url, options?)` | Full control fetch → parsed JSON |
+
+```js
+// Load data on element mount:
+// load handler:
+"api.get('/api/posts').then(posts=>{ helpers.setHTML('#list', posts.map(p=>'<li>'+p.title+'</li>').join('')); });"
+
+// Form submission:
+"event.preventDefault(); const d=helpers.getFormData(element); api.post('/api/contact', d).then(()=>{ utils.toast.success('Enviado'); helpers.hide('#form'); helpers.show('#success'); }).catch(()=>{});"
+
+// Delete with confirm:
+"modal.confirm({ message:'¿Eliminar?', confirmVariant:'danger', onConfirm:()=>{ api.delete('/api/items/'+element.dataset.id).then(()=>{ element.closest('.card').remove(); utils.toast.success('Eliminado'); }); } });"
+
+// Custom headers (e.g. auth token from storage):
+// api.post('/api/secure', data, { headers: { 'Authorization': 'Bearer ' + utils.fromLocalStorage('token') } })
+```
+
+---
+
+### `service` — Compiler service integration
+
+For running backend services (WebSocket or HTTP) registered in the compiler pipeline.
+Used in advanced integrations — not needed for standard pages.
+
+| Call | Description |
+|------|-------------|
+| `service.run(payloadService)` | Run a registered service → output asset |
+| `service.execute(contextService, payloadService, dispatch)` | Run with dispatch |
+| `service.uploadFile(options)` | Upload file via XHR with progress callback |
+| `service.getUploadId(uploadArgs)` | Get upload ID for multi-step upload |
+| `service.createWebSocketPayload(typeMsg, method, args, socketProps?)` | Build WS payload |
+| `service.createHttpPayload(type, method, args, socketProps?)` | Build HTTP payload |
+
+```js
+// File upload with progress bar:
+"service.uploadFile({ form: element, url: '/upload', onProgress: (p)=>{ helpers.setText('#progress', p+'%'); }, onUploadSuccess: (d)=>{ utils.toast.success('Archivo subido'); }, onUploadError: (e)=>{ utils.toast.error(e); } });"
+```
+
+---
+
+### Built-in quick cheatsheet
+
+```js
+// ── Toasts ───────────────────────────────────────────────
+utils.toast.success('Ok!');
+utils.toast.error('Falló');
+utils.toast.warning('Atención');
+utils.toast.info('Info');
+
+// ── Navigation ───────────────────────────────────────────
+utils.redirect('/path');
+utils.openInNewTab('https://...');
+utils.reload();
+
+// ── Scroll & timing ──────────────────────────────────────
+utils.scrollTo('#section');
+utils.scrollToTop();
+utils.wait({ fn: () => helpers.show('#el'), ms: 300 });
+
+// ── User & page ──────────────────────────────────────────
+utils.getUser();           // { id, email, isAdmin } | null
+utils.getLocaleLang();     // 'en' | 'es'
+utils.toLocalStorage('k', 'v');
+utils.fromLocalStorage('k');
+
+// ── Classes ──────────────────────────────────────────────
+helpers.toggleClass('#el', 'hidden');
+helpers.toggleClass(element, 'active');
+helpers.setClasses('#el', ['active', 'font-bold'], ['inactive']);
+helpers.addClass('#el', 'ring');
+helpers.removeClass('#el', 'ring');
+
+// ── Content ──────────────────────────────────────────────
+helpers.setText('#el', 'texto');
+helpers.setHTML('#el', '<b>bold</b>');
+helpers.appendHTML('#list', '<li>item</li>');
+helpers.clearContent('#el');
+
+// ── Visibility ───────────────────────────────────────────
+helpers.hide('#overlay');
+helpers.show('#result', 'flex');
+helpers.toggle('#menu');
+
+// ── Forms ────────────────────────────────────────────────
+const data = helpers.getFormData(element);
+helpers.copyToClipboard('text');
+helpers.clearFileInput('#file');
+
+// ── Modals ───────────────────────────────────────────────
+modal.confirm({ message: '¿Seguro?', confirmVariant: 'danger', onConfirm: () => {} });
+modal.create({ title: 'Info', content: '<p>...</p>', size: 'md', animation: 'fade' });
+modal.alert('Completado', 'Éxito', 'success');
+modal.open('#my-modal');
+modal.close('#my-modal');
+
+// ── API ──────────────────────────────────────────────────
+api.get('/api/resource').then(data => {});
+api.post('/api/resource', { field: 'value' }).then(res => {});
+api.put('/api/resource/1', updatedData).then(() => {});
+api.delete('/api/resource/1').then(() => {});
+```
 
 ### Simple examples
 
